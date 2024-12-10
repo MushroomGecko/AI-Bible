@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Bible App</title>
+
+    <style>
+        /* MOBILE SPECIFIC */
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; /* Adds native bounce and momentum scrolling */
+        }
+        body {
+            position: relative; /* Helps to fix layout shifting in some cases */
+            padding-top: constant(safe-area-inset-top); /* Fallback for older versions */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: constant(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        @media (hover: none) {
+            button:hover, .button-container:hover {
+                background-color: inherit; /* Removes hover effects for touch screens */
+            }
+        }
+        body, #main {
+            padding-bottom: 100px; /* Add basic padding as a fallback */
+            padding-bottom: calc(100px + env(safe-area-inset-bottom)); /* Add padding plus safe area inset */
+            padding-bottom: calc(100px + constant(safe-area-inset-bottom)); /* Older iOS fallback */
+            box-sizing: border-box; /* Ensure padding doesn’t affect width */
+        }
+
+
+
+
+        /* GENERAL SETTINGS */
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+
+
+
+
+        /* NOTE BOX */
+
+        #notes {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 25dvw; /* 25% of the viewport width */
+            height: 100dvh; /* Full viewport height */
+            background-color: #f0f0f0;
+            border-left: 1px solid #ccc;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        /* Basic styling for textarea */
+        #notesInput {
+            width: 100%;
+            height: 100%;
+            resize: none;
+            box-sizing: border-box;
+            border: none;
+            outline: none;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+
+
+
+
+        /* MAIN CONTAINER CONTENT */
+
+        #main {
+            position: fixed;
+            right: 25dvw;
+            height: calc(100vh - constant(safe-area-inset-bottom)); /* Fallback for older Safari */
+            height: calc(100vh - env(safe-area-inset-bottom));
+            width: 75dvw;
+            overflow-y: auto; /* Makes #main scrollable */
+        }
+
+        #inner-main {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+
+
+
+
+        /* CONTAINER FOR STICKY MENU */
+
+        .static-container {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0; /* Sticks to the top of #main */
+            background-color: #fff;
+            color: #000;
+            z-index: 1000; /* Ensures it stays above other elements */
+            text-align: center;
+            padding-bottom: 10px;
+        }
+
+
+
+
+
+        /* HIGHLIGHT SETTINGS */
+
+        .highlight {
+            background-color: yellow;
+        }
+
+
+
+
+
+        /* SETTINGS FOR DROPDOWN SELECT */
+
+        select {
+            font-size: 18px;
+        }
+
+
+
+
+
+        /* BUTTON SETTINGS */
+
+        .button-container {
+            display: flex;
+            justify-content: space-between; /* Align items to the far left and right */
+        }
+
+        button {
+            font-size: 18px;
+        }
+
+        #bottom-buttons {
+            padding-bottom: 10px;
+            padding-top: 10px
+        }
+
+
+
+
+
+        /* SECTION FOR SCRIPTURE */
+
+        .scrollable-paragraph {
+            position: relative;
+            font-size: 20px;
+            border: 1px solid #ccc;
+            height: auto;
+        }
+
+        /* Canvas styling for drawing */
+        #drawing-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+            pointer-events: none; /* Prevent interference with scrolling */
+        }
+
+
+
+
+
+        /* POPUP FOR IMAGE SEARCH */
+
+        /* Modal overlay styling */
+        .modal-overlay {
+          display: none; /* Hidden by default */
+          position: fixed;
+          z-index: 1000;
+          left: 0;
+          top: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.8); /* Dark overlay */
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        /* Modal content box */
+        .modal-content {
+          position: relative;
+          width: 80%;
+          max-width: 600px;
+          background-color: #fff;
+          border-radius: 8px;
+          overflow-y: auto; /* Scrollable */
+          max-height: 70vh;
+          padding: 20px;
+          box-sizing: border-box;
+        }
+
+        /* Close button */
+        .modal-close-btn {
+          position: absolute;
+          top: 10px;
+          right: 20px;
+          font-size: 30px;
+          font-weight: bold;
+          cursor: pointer;
+          z-index: 1001;
+        }
+
+        /* Scrollable image container for the modal */
+        .modal-image-container {
+          display: flex;
+          flex-direction: column;
+          overflow-y: auto;
+          max-height: 70vh;
+        }
+
+        /* Individual image styling */
+        .modal-image {
+          width: 100%;
+          height: auto;
+          margin-bottom: 10px;
+          border-radius: 4px;
+        }
+
+
+
+
+
+        /* POPUP FOR HIGHLIGHT BUTTONS */
+
+        #popup {
+            display: none; /* Initially hidden */
+            position: absolute;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+    </style>
+
+</head>
+<body>
+    <div id="main">
+        <div id="inner-main">
+        <div class="static-container">
+            <div>
+                <h1 class="center">
+                    {{ book }} {{ chapter }}
+                </h1>
+                <select id="version">
+                    {% for version_type in version_selection %}
+                    <option value="{{ version_type }}">{{ version_type }}</option>
+                    {% endfor %}
+                </select>
+                <select id="book">
+                    {% for book in selection %}
+                    <option value="{{ book }}">{{ book }}</option>
+                    {% endfor %}
+                </select>
+                <select id="chapter">
+                </select>
+            </div>
+
+            <br>
+
+            <div class="button-container">
+                <!-- <select id="ai" name="ai">
+                    <option value="default">Select A Tool</option>
+                    <option value="explainButton">Explain</option>
+                    <option value="defineButton">Define</option>
+                    <option value="questionButton">Ask General</option>
+                    <option value="selectedQuestionButton">Ask Selected</option>
+                    <option value="quizButton">Quiz</option>
+                    <option value="imageButton">Images</option>
+                    <option value="mapButton">Map</option>
+                </select> -->
+                <div>
+                    <button id="questionButton">Ask Question</button>
+                    <button id="chapterSummaryButton">Chapter Summary</button>
+                </div>
+                <div>
+                    <button id="highlightButton">Color</button>
+                    <div>
+                        <label>
+                            <input type="checkbox" id="toggle-drawing">
+                            Enable Drawing
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div id="popup">
+                <button id="explainButton">Explain</button>
+                <button id="defineButton">Define</button>
+                <button id="selectedQuestionButton">Ask</button>
+                <button id="imageButton">Images</button>
+                <button id="mapButton">Map</button>
+
+            </div>
+            <br>
+            <div class="button-container">
+                <button class="previousButton"><--</button>
+                <button class="nextButton">--></button>
+            </div>
+        </div>
+
+        <br>
+        <div class="scrollable-paragraph">
+            {% for verse in verses %}
+                <p id="p-{{ loop.index }}">
+                    {{ verse | safe }}<br>
+                </p>
+            {% endfor %}
+            <canvas id="drawing-canvas"></canvas>
+        </div>
+
+        <div id="bottom-buttons">
+            <div class="button-container">
+                <button class="previousButton"><--</button>
+                <button id="quizButton">Quiz</button>
+                <button class="nextButton">--></button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div id="notes">
+        <textarea id="notesInput" placeholder="Notes..."></textarea>
+    </div>
+
+    <script>
+        // BIBLE DICTIONARY DATA
+
+        // Data for Bible books and chapters
+        const bibleData = {{ selection | tojson }};
+        const bookNames = {{ in_order | tojson }};
+
+
+
+
+
+        // CANVAS AND OTHER DATA
+
+        const staticContainer = document.querySelector('.static-container');
+        const staticContainerHeight = staticContainer.offsetHeight;
+        const scrollableParagraph = document.querySelector('.scrollable-paragraph');
+        const canvas = document.getElementById("drawing-canvas");
+        const ctx = canvas.getContext("2d");
+        const toggleDrawing = document.getElementById("toggle-drawing");
+
+
+
+
+
+        // BIBLE DROPDOWN SELECTION
+
+        const versionSelect = document.getElementById("version");
+        const bookSelect = document.getElementById("book");
+        const chapterSelect = document.getElementById("chapter");
+
+        // Get all chapters for selected book
+        var chapters = bibleData['{{ book }}'];
+        if (chapters)
+        {
+            // Populate chapters based on the selected book
+            for (let i = 1; i <= chapters; i++)
+            {
+                const option = document.createElement("option");
+                option.value = i;
+                option.textContent = `${i}`;
+                chapterSelect.appendChild(option);
+            }
+        }
+
+        // Set default values to current book and chapter for users to easily switch between books and chapters
+        bookSelect.value = '{{ book }}'
+        chapterSelect.value = {{ chapter }}
+        versionSelect.value = '{{ version }}'
+
+        // Populate chapter dropdown based on Book selection
+        bookSelect.addEventListener("change", function()
+        {
+            // Clear existing chapter options for new chapters
+            chapterSelect.innerHTML = `<option value="">0</option>`;
+
+            // Get all chapters foe selected book
+            chapters = bibleData[this.value];
+            if (chapters)
+            {
+                // Populate chapters based on the selected book
+                for (let i = 1; i <= chapters; i++)
+                {
+                    const option = document.createElement("option");
+                    option.value = i;
+                    option.textContent = `${i}`;
+                    chapterSelect.appendChild(option);
+                }
+            }
+        });
+
+        // Redirect on Chapter selection
+        chapterSelect.addEventListener("change", function()
+        {
+            const selectedBook = bookSelect.value;
+            const selectedChapter = chapterSelect.value;
+
+            if (selectedBook && selectedChapter)
+            {
+                // Format the URL as /Book-Chapter (e.g., /Genesis-3)
+                window.location.href = `/${selectedBook}-${selectedChapter}-{{ version }}`;
+            }
+        });
+
+        // Redirect on Version selection
+        versionSelect.addEventListener("change", function()
+        {
+            const selectedVersion = versionSelect.value;
+
+            if (selectedVersion)
+            {
+                // Format the URL as /Book-Chapter (e.g., /Genesis-3)
+                window.location.href = `/{{ book }}-{{chapter}}-${selectedVersion}`;
+            }
+        });
+
+
+
+
+
+        // SELECTION OF TEXT
+
+        // Initialize selected data variable
+        var selectedText = "";
+        var persistText = "";
+
+        document.addEventListener("mouseup", (event) => {
+            handleTouch(event);
+        });
+        document.addEventListener("touchend", (event) => {
+            handleTouch(event);
+        });
+        document.addEventListener("mousedown", (event) => {
+            popup.style.display = "none";
+        });
+        document.addEventListener("touchstart", (event) => {
+            popup.style.display = "none";
+        });
+
+        function handleTouch(event)
+        {
+            // Get the selected text
+            selectedText = document.getSelection();
+
+            if (selectedText != "") {
+
+                // Show the popup near the selection
+                persistText = selectedText;
+
+                popup.style.display = "block";
+                popup.style.left = `${event.pageX}px`;
+                popup.style.top = `${event.pageY}px`;
+            }
+            else
+            {
+                popup.style.display = "none";
+            }
+        }
+
+        // EXPLAIN
+        explainButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            handleExplain(); // Prevent clearing selection
+        });
+        explainButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            handleExplain(); // Prevent clearing selection
+        });
+
+        // DEFINE
+        defineButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            handleDefine(); // Prevent clearing selection
+        });
+        defineButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            handleDefine(); // Prevent clearing selection
+        });
+
+        // QUESTION
+        questionButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            handleQuestion(); // Prevent clearing selection
+        });
+        questionButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            handleQuestion(); // Prevent clearing selection
+        });
+
+        // SELECTED QUESTION
+        selectedQuestionButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            handleSelectedQuestion(); // Prevent clearing selection
+        });
+        selectedQuestionButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            handleSelectedQuestion(); // Prevent clearing selection
+        });
+
+        // QUIZ
+        quizButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            handleQuiz(); // Prevent clearing selection
+        });
+        quizButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            handleQuiz(); // Prevent clearing selection
+        });
+
+        // SUMMARIZE
+        chapterSummaryButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            summarizeChapter(); // Prevent clearing selection
+        });
+        chapterSummaryButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            summarizeChapter(); // Prevent clearing selection
+        });
+
+        // IMAGES
+        imageButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            handleImages(); // Prevent clearing selection
+        });
+        imageButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            handleImages(); // Prevent clearing selection
+        });
+
+        // MAP
+        mapButton.addEventListener("mousedown", () => {
+            popup.style.display = "none";
+            handleMap(); // Prevent clearing selection
+        });
+        mapButton.addEventListener("touchstart", () => {
+            popup.style.display = "none";
+            handleMap(); // Prevent clearing selection
+        });
+
+
+
+
+
+        // EXPLAIN TEXT
+        // Explain selected data
+        function handleExplain()
+        {
+            if (persistText.toString())
+            {
+                alert("Please be patient as your response generates.")
+                const range = persistText.getRangeAt(0);
+                const parentElement = range.startContainer.parentElement;
+
+                // Traverse up to find the closest element with an ID
+                const elementWithID = parentElement.closest('[id]');
+                var fullNodeContentText = "";
+
+                if(elementWithID)
+                {
+                    fullNodeContentText = elementWithID.textContent;
+                }
+
+                // Send the selected text to the server
+                fetch('/explain-selection',
+                {
+                    method: 'POST',
+                    headers:
+                    {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ selected_text: selectedText.toString(), full_context: fullNodeContentText, book: "{{ book }}", chapter: "{{ chapter }}" })
+                })
+                // Get JSON from the server's response
+                .then(response => response.json())
+                // Get the "message" key from the server's JSON response
+                .then(data =>
+                {
+                    // selectedText.empty();
+                    // selectedText.removeAllRanges();
+                    alert(data.message);
+                })
+                // Display error message to user if something went wrong with POST request
+                .catch(error =>
+                {
+                    console.error('Error:', error);
+                });
+
+            // Make sure the user selected some text
+            }
+            else
+            {
+                alert("Please highlight some text before clicking the button.");
+            }
+        }
+
+
+
+
+
+        // DEFINING TEXT
+        // Define selected data
+        function handleDefine()
+        {
+            if (persistText.toString())
+            {
+                alert("Please be patient as your response generates.")
+                const range = persistText.getRangeAt(0);
+                const parentElement = range.startContainer.parentElement;
+
+                // Traverse up to find the closest element with an ID
+                const elementWithID = parentElement.closest('[id]');
+                var fullNodeContentText = "";
+
+                if(elementWithID)
+                {
+                    fullNodeContentText = elementWithID.textContent;
+                }
+
+                // Send the selected text to the server
+                fetch('/define-selection',
+                {
+                    method: 'POST',
+                    headers:
+                    {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ selected_text: selectedText.toString(), full_context: fullNodeContentText, book: "{{ book }}", chapter: "{{ chapter }}" })
+                })
+                // Get JSON from the server's response
+                .then(response => response.json())
+                // Get the "message" key from the server's JSON response
+                .then(data =>
+                {
+                    // selectedText.empty();
+                    // selectedText.removeAllRanges();
+                    alert(data.message);
+                })
+                // Display error message to user if something went wrong with POST request
+                .catch(error =>
+                {
+                    console.error('Error:', error);
+                });
+            // Make sure the user selected some text
+            }
+            else
+            {
+                alert("Please highlight some text before clicking the button.");
+            }
+        }
+
+
+
+
+
+        // ASKING QUESTION
+        // Define selected data
+        function handleQuestion()
+        {
+            let question = prompt("Ask any question!");
+            if (question != null && question != "")
+            {
+                alert("Please be patient as your response generates.")
+                // Send the selected text to the server
+                fetch('/ask_question',
+                {
+                    method: 'POST',
+                    headers:
+                    {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_query: question.toString()})
+                })
+                // Get JSON from the server's response
+                .then(response => response.json())
+                // Get the "message" key from the server's JSON response
+                .then(data =>
+                {
+                    // selectedText.empty();
+                    // selectedText.removeAllRanges();
+                    alert(data.message);
+                })
+                // Display error message to user if something went wrong with POST request
+                .catch(error =>
+                {
+                    console.error('Error:', error);
+                });
+            // Make sure the user selected some text
+            }
+            else if (question == "")
+            {
+                alert("Please type something in the question box.");
+            }
+        }
+
+
+
+
+
+        // SELECTED ASKING QUESTION
+        // Ask selected data
+        function handleSelectedQuestion()
+        {
+            if (persistText.toString())
+            {
+                let question = prompt("Ask any question about the selected text!");
+                if (question != null && question != "")
+                {
+                    alert("Please be patient as your response generates.")
+                    const range = persistText.getRangeAt(0);
+                    const parentElement = range.startContainer.parentElement;
+
+                    // Traverse up to find the closest element with an ID
+                    const elementWithID = parentElement.closest('[id]');
+                    var fullNodeContentText = "";
+
+                    if(elementWithID)
+                    {
+                        fullNodeContentText = elementWithID.textContent;
+                    }
+
+                    // Send the selected text to the server
+                    fetch('/ask-selection',
+                    {
+                        method: 'POST',
+                        headers:
+                        {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({user_query: question.toString(), selected_text: selectedText.toString(), full_context: fullNodeContentText, book: "{{ book }}", chapter: "{{ chapter }}" })
+                    })
+                    // Get JSON from the server's response
+                    .then(response => response.json())
+                    // Get the "message" key from the server's JSON response
+                    .then(data =>
+                    {
+                        // selectedText.empty();
+                        // selectedText.removeAllRanges();
+                        alert(data.message);
+                    })
+                    // Display error message to user if something went wrong with POST request
+                    .catch(error =>
+                    {
+                        console.error('Error:', error);
+                    });
+                }
+                else if (question == "")
+                {
+                    alert("Please type something in the question box.");
+                }
+            // Make sure the user selected some text
+            }
+            else
+            {
+                alert("Please highlight some text before clicking the button.");
+            }
+        }
+
+
+
+
+
+
+        // QUIZ
+        // Select all <p> elements on the page
+        function handleQuiz()
+        {
+            const paragraphs = document.querySelectorAll('p');
+
+            // Extract and store the text content of each <p> element
+            const paragraphContents = Array.from(paragraphs).map(p => p.textContent);
+
+            alert("WARNING: Quiz questions and options may be inaccurate.");
+            alert("Please wait while your quiz generates.");
+
+            let results = {};
+            let quizData = {};
+
+            // Fetch the quiz data from the server
+            fetch('/get_quiz', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ full_context: paragraphContents })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // alert(data.message);
+
+                // Parse the JSON response
+                try {
+                    quizData = JSON.parse(data.message);
+                    // alert(quizData);
+                }
+                catch (error) {
+                    // Handle the error
+                    alert("Quiz could not be generated. Please try again.")
+                    console.error("An error occurred:", error.message);
+                    return;
+                }
+
+                // Create or show the modal for the quiz
+                let modal = document.getElementById('quizModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'quizModal';
+                    modal.className = 'modal-overlay';
+
+                    const modalContent = document.createElement('div');
+                    modalContent.className = 'modal-content';
+
+                    const closeBtn = document.createElement('span');
+                    closeBtn.className = 'modal-close-btn';
+                    closeBtn.innerHTML = '&times;';
+                    closeBtn.onclick = () => { modal.remove() };
+
+                    const quizContainer = document.createElement('form');
+                    quizContainer.id = 'quizForm';
+
+                    const submitButton = document.createElement('button');
+                    submitButton.type = 'button';
+                    submitButton.textContent = 'Submit Quiz';
+                    submitButton.onclick = () => {
+                        // Gather quiz answers
+                        const formData = new FormData(quizContainer);
+                        results = {};
+                        for (const [key, value] of formData.entries()) {
+                            results[key] = value;
+                        }
+
+                        // Send results to the server
+                        fetch('/submit_quiz', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ quiz_results: results, quiz_answers: quizData })
+                        })
+                        .then(response => response.json())
+                        .then(serverResponse => {
+                            alert(serverResponse.message);
+                        })
+                        .catch(error => {
+                            console.error('Error submitting quiz:', error);
+                        });
+                    };
+
+                    modalContent.appendChild(closeBtn);
+                    modalContent.appendChild(quizContainer);
+                    modalContent.appendChild(submitButton);
+                    modal.appendChild(modalContent);
+                    document.body.appendChild(modal);
+                }
+
+                const quizContainer = modal.querySelector('#quizForm');
+                quizContainer.innerHTML = ''; // Clear previous quiz content
+
+                // Populate the quiz with questions and options
+                Object.entries(quizData).forEach(([question, details], index) => {
+                    // Create a container for each question
+                    const questionDiv = document.createElement('div');
+                    questionDiv.className = 'quiz-question';
+
+                    // Add question text
+                    const questionTitle = document.createElement('p');
+                    questionTitle.textContent = `${index + 1}. ${question}`;
+                    questionDiv.appendChild(questionTitle);
+
+                    // Add options as radio buttons
+                    Object.entries(details.options).forEach(([key, value]) => {
+                        const label = document.createElement('label');
+                        label.textContent = value;
+
+                        const radioInput = document.createElement('input');
+                        radioInput.type = 'radio';
+                        radioInput.name = question; // Group options under the same question
+                        radioInput.value = key;
+
+                        label.prepend(radioInput); // Add radio button before the text
+                        questionDiv.appendChild(label);
+                        questionDiv.appendChild(document.createElement('br'));
+                    });
+
+                    quizContainer.appendChild(questionDiv);
+                });
+                modal.style.display = 'flex'; // Show the modal
+            })
+            .catch(error => {
+                console.error('Error fetching quiz:', error);
+            });
+        }
+
+
+
+
+        // SUMMARIZE CHAPTER
+        // Select all <p> elements on page for full context
+        function summarizeChapter()
+        {
+            const paragraphs = document.querySelectorAll('p');
+
+            // Extract and store the text content of each <p> element
+            const paragraphContents = Array.from(paragraphs).map(p => p.textContent);
+
+            alert("Please be patient as your response generates.")
+            // Send the selected text to the server
+            fetch('/summarize_chapter',
+            {
+                method: 'POST',
+                headers:
+                {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ full_context: paragraphContents, book: "{{ book }}", chapter: "{{ chapter }}" })
+            })
+            // Get JSON from the server's response
+            .then(response => response.json())
+            // Get the "message" key from the server's JSON response
+            .then(data =>
+            {
+                // selectedText.empty();
+                // selectedText.removeAllRanges();
+                alert(data.message);
+            })
+            // Display error message to user if something went wrong with POST request
+            .catch(error =>
+            {
+                console.error('Error:', error);
+            });
+        }
+
+
+
+
+
+        // IMAGES
+        // search for a map of selected data
+        function handleImages()
+        {
+            if (persistText.toString()) {
+                // Send the selected text to the server
+                fetch('/search-selection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ selected_text: persistText.toString() })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.images && data.images.length > 0) {
+                        // Create the modal container if it doesn’t already exist
+                        let modal = document.getElementById('imageModal');
+                        if (!modal) {
+                            modal = document.createElement('div');
+                            modal.id = 'imageModal';
+                            modal.className = 'modal-overlay';
+
+                            // Modal content container
+                            const modalContent = document.createElement('div');
+                            modalContent.className = 'modal-content';
+
+                            // Close button
+                            const closeBtn = document.createElement('span');
+                            closeBtn.className = 'modal-close-btn';
+                            closeBtn.innerHTML = '&times;';
+                            closeBtn.onclick = () => { modal.style.display = 'none'; };
+
+                            // Image container
+                            const imageContainer = document.createElement('div');
+                            imageContainer.className = 'modal-image-container';
+
+                            // Append elements to modal
+                            modalContent.appendChild(closeBtn);
+                            modalContent.appendChild(imageContainer);
+                            modal.appendChild(modalContent);
+                            document.body.appendChild(modal);
+                        }
+
+                        // Clear any previous images
+                        const imageContainer = modal.querySelector('.modal-image-container');
+                        imageContainer.innerHTML = '';
+
+                        // Populate modal with images from data
+                        data.images.forEach(url => {
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = 'Gallery Image';
+                            img.className = 'modal-image';
+                            imageContainer.appendChild(img);
+                        });
+
+                        // Show the modal
+                        modal.style.display = 'flex';
+
+                        selectedText.empty();
+                        selectedText.removeAllRanges();
+                    } else {
+                        alert("No images found. Please try again later.");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            } else {
+                alert("Please highlight some text before clicking the button.");
+            }
+        }
+
+
+
+
+
+        // MAP
+        // search for a map of selected data
+        function handleMap()
+        {
+            if (persistText.toString()) {
+                // Send the selected text to the server
+                fetch('/search-map-selection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ selected_text: persistText.toString() })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.images && data.images.length > 0) {
+                        // Create the modal container if it doesn’t already exist
+                        let modal = document.getElementById('imageModal');
+                        if (!modal) {
+                            modal = document.createElement('div');
+                            modal.id = 'imageModal';
+                            modal.className = 'modal-overlay';
+
+                            // Modal content container
+                            const modalContent = document.createElement('div');
+                            modalContent.className = 'modal-content';
+
+                            // Close button
+                            const closeBtn = document.createElement('span');
+                            closeBtn.className = 'modal-close-btn';
+                            closeBtn.innerHTML = '&times;';
+                            closeBtn.onclick = () => { modal.style.display = 'none'; };
+
+                            // Image container
+                            const imageContainer = document.createElement('div');
+                            imageContainer.className = 'modal-image-container';
+
+                            // Append elements to modal
+                            modalContent.appendChild(closeBtn);
+                            modalContent.appendChild(imageContainer);
+                            modal.appendChild(modalContent);
+                            document.body.appendChild(modal);
+                        }
+
+                        // Clear any previous images
+                        const imageContainer = modal.querySelector('.modal-image-container');
+                        imageContainer.innerHTML = '';
+
+                        // Populate modal with images from data
+                        data.images.forEach(url => {
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = 'Gallery Image';
+                            img.className = 'modal-image';
+                            imageContainer.appendChild(img);
+                        });
+
+                        // Show the modal
+                        modal.style.display = 'flex';
+
+                        selectedText.empty();
+                        selectedText.removeAllRanges();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            } else {
+                alert("Please highlight some text before clicking the button.");
+            }
+        }
+
+
+
+
+
+
+
+
+        // HIGHLIGHTING TEXT
+
+        document.getElementById('highlightButton').addEventListener('click', () =>
+        {
+            if (selectedText.toString())
+            {
+                const range = selectedText.getRangeAt(0);
+                const selectedIDs = new Set();
+
+                // Clone the range content to find all selected <p> elements
+                const nodes = range.cloneContents().querySelectorAll('p');
+
+                nodes.forEach(node =>
+                {
+                    if (node.id)
+                    {
+                        selectedIDs.add(node.id); // Add the id to the set if it exists
+                    }
+                });
+
+                // If specific paragraphs are selected
+                if (selectedIDs.size > 0)
+                {
+                    selectedIDs.forEach(id =>
+                    {
+                        const element = document.getElementById(id);
+                        const elementRange = document.createRange();
+
+                        // Determine if only part of the paragraph is selected
+                        if (element.contains(range.startContainer) || element.contains(range.endContainer))
+                        {
+                            const span = document.createElement("span");
+                            span.className = "highlight";
+
+                            // Adjust the range to highlight only the selected portion
+                            if (element.contains(range.startContainer))
+                            {
+                                elementRange.setStart(range.startContainer, range.startOffset);
+                            }
+                            else
+                            {
+                                elementRange.setStart(element, 0);
+                            }
+
+                            if (element.contains(range.endContainer))
+                            {
+                                elementRange.setEnd(range.endContainer, range.endOffset);
+                            }
+                            else
+                            {
+                                elementRange.setEnd(element, element.childNodes.length);
+                            }
+
+                            // Wrap the selected content in a span
+                            const extractedContent = elementRange.extractContents();
+                            span.appendChild(extractedContent);
+                            elementRange.insertNode(span);
+                        }
+                        else
+                        {
+                            // If the whole paragraph is selected, wrap entire content
+                            element.innerHTML = `<span class="highlight">${element.innerHTML}</span>`;
+                        }
+                    });
+                }
+                else
+                {
+                    // If only a single range within a single paragraph is selected
+                    const span = document.createElement("span");
+                    span.className = "highlight";
+                    range.surroundContents(span);
+                }
+
+                // Clear the selection after highlighting
+                selectedText.removeAllRanges();
+
+            }
+            else
+            {
+                alert("Please select some text to highlight.");
+            }
+        });
+
+        // Maintain highlighted content data while mouse clicking on highlight button to prevent internal deselection
+        highlightButton.addEventListener('mousedown', (e) =>
+        {
+            // Prevent the button from clearing the selection
+            e.preventDefault();
+        });
+
+        // Maintain highlighted content data while screen tapping on highlight button to prevent internal deselection
+        highlightButton.addEventListener('touchbegin', (e) =>
+        {
+            // Prevent the button from clearing the selection
+            e.preventDefault();
+        });
+
+
+
+
+        // DRAWING
+
+        // Set canvas size to match the expanding div size
+        canvas.width = scrollableParagraph.clientWidth;
+        canvas.height = scrollableParagraph.scrollHeight;
+
+        window.addEventListener("resize", () => {
+            canvas.width = scrollableParagraph.clientWidth;
+            canvas.height = scrollableParagraph.scrollHeight;
+        });
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // Function to start drawing on PC
+        canvas.addEventListener("mousedown", (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener("mouseup", () => isDrawing = false);
+        canvas.addEventListener("mouseout", () => isDrawing = false);
+
+        // Function to draw on the canvas
+        canvas.addEventListener("mousemove", (e) => {
+            if (!isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.strokeStyle = "#FF0000"; // Set drawing color
+            ctx.lineWidth = 2; // Set line width
+            ctx.lineJoin = "round";
+            ctx.lineCap = "round";
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            lastX = x;
+            lastY = y;
+        });
+
+        // Add touch equivalents for mobile devices
+        canvas.addEventListener("touchstart", (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.touches[0].clientX - rect.left;
+            lastY = e.touches[0].clientY - rect.top;
+            e.preventDefault(); // Prevent scrolling
+        });
+
+        canvas.addEventListener("touchend", () => isDrawing = false);
+        canvas.addEventListener("touchcancel", () => isDrawing = false);
+
+        canvas.addEventListener("touchmove", (e) => {
+            if (!isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.touches[0].clientX - rect.left;
+            const y = e.touches[0].clientY - rect.top;
+
+            ctx.strokeStyle = "#FF0000"; // Set drawing color
+            ctx.lineWidth = 2; // Set line width
+            ctx.lineJoin = "round";
+            ctx.lineCap = "round";
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            lastX = x;
+            lastY = y;
+            e.preventDefault(); // Prevent scrolling
+        });
+
+        // Toggle drawing mode
+        toggleDrawing.addEventListener("change", () => {
+            if (toggleDrawing.checked) {
+                // Enable pointer events for drawing and add event listeners for mouse and touch events
+                canvas.style.pointerEvents = "auto";
+                canvas.addEventListener("mousedown", startDrawing);
+                canvas.addEventListener("mousemove", draw);
+                canvas.addEventListener("mouseup", stopDrawing);
+                canvas.addEventListener("mouseout", stopDrawing);
+
+                canvas.addEventListener("touchstart", startDrawing);
+                canvas.addEventListener("touchmove", draw);
+                canvas.addEventListener("touchend", stopDrawing);
+                canvas.addEventListener("touchcancel", stopDrawing);
+            } else {
+                // Disable pointer events to prevent further drawing but retain the drawing on canvas
+                canvas.style.pointerEvents = "none";
+
+                // Remove event listeners for mouse and touch events
+                canvas.removeEventListener("mousedown", startDrawing);
+                canvas.removeEventListener("mousemove", draw);
+                canvas.removeEventListener("mouseup", stopDrawing);
+                canvas.removeEventListener("mouseout", stopDrawing);
+
+                canvas.removeEventListener("touchstart", startDrawing);
+                canvas.removeEventListener("touchmove", draw);
+                canvas.removeEventListener("touchend", stopDrawing);
+                canvas.removeEventListener("touchcancel", stopDrawing);
+            }
+        });
+
+
+
+
+
+        // FORWARD AND BACK BUTTONS
+
+        // Initialize navigation variables
+        let currentBook = '{{ book }}';
+        let currentChapter = '{{ chapter }}';
+        let currentVersion = '{{ version }}';
+
+        // Next button click event for all elements with class 'nextButton'
+        document.querySelectorAll('.nextButton').forEach(button => {
+            button.addEventListener('click', () => {
+                const totalChapters = bibleData[currentBook];
+
+                if (currentChapter < totalChapters) {
+                    // Move to the next chapter within the same book
+                    currentChapter++;
+                } else {
+                    // Move to the first chapter of the next book
+                    const currentBookIndex = bookNames.indexOf(currentBook);
+                    const nextBookIndex = (currentBookIndex + 1) % bookNames.length; // Wrap around to Genesis if at the end
+                    currentBook = bookNames[nextBookIndex];
+                    currentChapter = 1;
+                }
+
+                // Update display
+                window.location.href = `/${currentBook}-${currentChapter}-${currentVersion}`;
+            });
+        });
+
+        // Previous button click event for all elements with class 'previousButton'
+        document.querySelectorAll('.previousButton').forEach(button => {
+            button.addEventListener('click', () => {
+                if (currentChapter > 1) {
+                    // Move to the previous chapter within the same book
+                    currentChapter--;
+                } else {
+                    // Move to the last chapter of the previous book
+                    const currentBookIndex = bookNames.indexOf(currentBook);
+                    const previousBookIndex = (currentBookIndex - 1 + bookNames.length) % bookNames.length; // Wrap around to Revelation if at the beginning
+                    currentBook = bookNames[previousBookIndex];
+                    currentChapter = bibleData[currentBook]; // Set to last chapter of the previous book
+                }
+
+                // Update display
+                window.location.href = `/${currentBook}-${currentChapter}-${currentVersion}`;
+            });
+        });
+    </script>
+
+</body>
+</html>
